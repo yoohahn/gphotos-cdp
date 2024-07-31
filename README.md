@@ -1,8 +1,16 @@
-gphotos-cdp
-========
+# gphotos-cdp
 
-What?
---------
+## NOTES
+
+Only tested in Linux.
+
+```bash
+$ mkdir -p {/home/johan/Downloads/gphotos-cdp,/home/johan/.gphoto-back,/home/johan/.gphoto-back/google-chrome}
+$ google-chrome --user-data-dir=/home/johan/.gphoto-back/google-chrome
+$ go run main.go -n 20 -dldir /home/johan/Downloads/gphotos-cdp
+```
+
+## What?
 
 This program uses the Chrome DevTools Protocol to drive a Chrome session that
 downloads your photos stored in Google Photos.
@@ -16,9 +24,7 @@ For each downloaded photo, an external program can be run on it (with the -run
 flag) right after it is downloaded to e.g. upload it somewhere else. See the
 upload/perkeep program, which uploads to a Perkeep server, for an example.
 
-
-Why?
---------
+## Why?
 
 We want to incrementally download our own photos out of Google Photos.
 
@@ -48,11 +54,9 @@ pretty easy. Brad hacked up some Go code to drive Chrome (using
 https://github.com/chromedp/chromedp) and do a basic download and then
 [Mathieu Lonjaret](https://github.com/mpl) made this tool, fleshing out the idea.
 
-What if Google Photos breaks this tool on purpose or accident?
---------
+## What if Google Photos breaks this tool on purpose or accident?
 
 I guess we'll have to continually update it.
 
 But that's no different than using people's APIs, because companies all seem to
 be deprecating and changing their APIs regularly too.
-
