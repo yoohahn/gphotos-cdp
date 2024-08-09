@@ -24,7 +24,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -35,6 +34,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/barasher/go-exiftool"
 	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/cdproto/input"
 	"github.com/chromedp/cdproto/page"
@@ -110,7 +110,7 @@ type Session struct {
 // getLastDone returns the URL of the most recent item that was downloaded in
 // the previous run. If any, it should have been stored in dlDir/.lastdone
 func getLastDone(dlDir string) (string, error) {
-	data, err := ioutil.ReadFile(filepath.Join(dlDir, ".lastdone"))
+	data, err := os.ReadFile(filepath.Join(dlDir, ".lastdone"))
 	if os.IsNotExist(err) {
 		return "", nil
 	}
@@ -129,7 +129,7 @@ func NewSession() (*Session, error) {
 		}
 	} else {
 		var err error
-		dir, err = ioutil.TempDir("", "gphotos-cdp")
+		dir, err = os.MkdirTemp("", "gphotos-cdp")
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +187,7 @@ func (s *Session) cleanDlDir() error {
 	if s.dlDir == "" {
 		return nil
 	}
-	entries, err := ioutil.ReadDir(s.dlDir)
+	entries, err := os.ReadDir(s.dlDir)
 	if err != nil {
 		return err
 	}
@@ -455,7 +455,7 @@ func markDone(dldir, location string) error {
 			return err
 		}
 	}
-	if err := ioutil.WriteFile(oldPath, []byte(location), 0600); err != nil {
+	if err := os.WriteFile(oldPath, []byte(location), 0600); err != nil {
 		// restore from backup
 		if err := os.Rename(newPath, oldPath); err != nil {
 			if !os.IsNotExist(err) {
@@ -522,22 +522,26 @@ func (s *Session) download(ctx context.Context, location string) (string, error)
 			return "", fmt.Errorf("hit deadline while downloading in %q", s.dlDir)
 		}
 
-		entries, err := ioutil.ReadDir(s.dlDir)
+		entries, err := os.ReadDir(s.dlDir)
 		if err != nil {
 			return "", err
 		}
 		var fileEntries []os.FileInfo
-		for _, v := range entries {
-			if v.IsDir() {
+		for _, entry := range entries {
+			if entry.IsDir() {
 				continue
 			}
-			if v.Name() == ".lastdone" {
+			if entry.Name() == ".lastdone" {
 				continue
 			}
-			if v.Name() == ".lastdone.bak" {
+			if entry.Name() == ".lastdone.bak" {
 				continue
 			}
-			fileEntries = append(fileEntries, v)
+			fileInfo, err := entry.Info()
+			if err != nil {
+				return "", err
+			}
+			fileEntries = append(fileEntries, fileInfo)
 		}
 		if len(fileEntries) < 1 {
 			continue
@@ -571,6 +575,37 @@ func (s *Session) download(ctx context.Context, location string) (string, error)
 	return filename, nil
 }
 
+// Try to extract the CreateDate from the exif data of the file and use that to create a new path
+// Path will be s.dlDir/YYYY/MM
+func (s *Session) getNewPathString(dlFile string, location string) string {
+	noDateFolder := "manual_move"
+	et, err := exiftool.NewExiftool()
+	if err != nil {
+		fmt.Printf("Error when intializing: %v\n", err)
+	}
+	defer et.Close()
+	dlFileFullPath := filepath.Join(s.dlDir, dlFile)
+	fileInfos := et.ExtractMetadata(dlFileFullPath)
+	created := fileInfos[0].Fields["CreateDate"]
+
+	if created == nil {
+		fmt.Println("No CreateDate found in exif data for the following file", location)
+		return noDateFolder
+	}
+
+	year := strings.Split(created.(string), ":")[0]
+	month := strings.Split(created.(string), ":")[1]
+
+	newDir := filepath.Join(s.dlDir, year, month)
+	// if _, err := os.Stat(newDir); os.IsNotExist(err) {
+	// 	if err := os.MkdirAll(newDir, 0700); err != nil {
+	// 		fmt.Println("Error when creating directory", newDir)
+	// 		return noDateFolder
+	// 	}
+	// }
+	return newDir
+}
+
 // moveDownload creates a directory in s.dlDir named of the item ID found in
 // location. It then moves dlFile in that directory. It returns the new path
 // of the moved file.
@@ -579,7 +614,9 @@ func (s *Session) moveDownload(ctx context.Context, dlFile, location string) (st
 	if len(parts) < 5 {
 		return "", fmt.Errorf("not enough slash separated parts in location %v: %d", location, len(parts))
 	}
-	newDir := filepath.Join(s.dlDir, parts[4])
+
+	// newDir := filepath.Join(s.dlDir, parts[4])
+	newDir := s.getNewPathString(dlFile, location)
 	if err := os.MkdirAll(newDir, 0700); err != nil {
 		return "", err
 	}

@@ -4,6 +4,8 @@
 
 Only tested in Linux.
 
+Needs `sudo apt install -y exiftool`.
+
 ```bash
 $ mkdir -p {/home/johan/Downloads/gphotos-cdp,/home/johan/.gphoto-back,/home/johan/.gphoto-back/google-chrome}
 $ google-chrome --user-data-dir=/home/johan/.gphoto-back/google-chrome
