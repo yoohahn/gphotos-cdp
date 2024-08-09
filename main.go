@@ -582,6 +582,7 @@ func (s *Session) getNewPathString(dlFile string, location string) string {
 	et, err := exiftool.NewExiftool()
 	if err != nil {
 		fmt.Printf("Error when intializing: %v\n", err)
+		return noDateFolder
 	}
 	defer et.Close()
 	dlFileFullPath := filepath.Join(s.dlDir, dlFile)
@@ -597,12 +598,7 @@ func (s *Session) getNewPathString(dlFile string, location string) string {
 	month := strings.Split(created.(string), ":")[1]
 
 	newDir := filepath.Join(s.dlDir, year, month)
-	// if _, err := os.Stat(newDir); os.IsNotExist(err) {
-	// 	if err := os.MkdirAll(newDir, 0700); err != nil {
-	// 		fmt.Println("Error when creating directory", newDir)
-	// 		return noDateFolder
-	// 	}
-	// }
+
 	return newDir
 }
 
@@ -610,11 +606,10 @@ func (s *Session) getNewPathString(dlFile string, location string) string {
 // location. It then moves dlFile in that directory. It returns the new path
 // of the moved file.
 func (s *Session) moveDownload(ctx context.Context, dlFile, location string) (string, error) {
-	parts := strings.Split(location, "/")
-	if len(parts) < 5 {
-		return "", fmt.Errorf("not enough slash separated parts in location %v: %d", location, len(parts))
-	}
-
+	// parts := strings.Split(location, "/")
+	// if len(parts) < 5 {
+	// 	return "", fmt.Errorf("not enough slash separated parts in location %v: %d", location, len(parts))
+	// }
 	// newDir := filepath.Join(s.dlDir, parts[4])
 	newDir := s.getNewPathString(dlFile, location)
 	if err := os.MkdirAll(newDir, 0700); err != nil {
