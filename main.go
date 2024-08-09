@@ -578,10 +578,11 @@ func (s *Session) download(ctx context.Context, location string) (string, error)
 // Try to extract the CreateDate from the exif data of the file and use that to create a new path
 // Path will be s.dlDir/YYYY/MM
 func (s *Session) getNewPathString(dlFile string, location string) string {
-	noDateFolder := "manual_move"
+	newDir := filepath.Join(s.dlDir, "manual_move")
 	et, err := exiftool.NewExiftool()
 	if err != nil {
 		fmt.Printf("Error when intializing: %v\n", err)
+		return newDir
 	}
 	defer et.Close()
 	dlFileFullPath := filepath.Join(s.dlDir, dlFile)
@@ -590,19 +591,14 @@ func (s *Session) getNewPathString(dlFile string, location string) string {
 
 	if created == nil {
 		fmt.Println("No CreateDate found in exif data for the following file", location)
-		return noDateFolder
+		return newDir
 	}
 
 	year := strings.Split(created.(string), ":")[0]
 	month := strings.Split(created.(string), ":")[1]
 
-	newDir := filepath.Join(s.dlDir, year, month)
-	// if _, err := os.Stat(newDir); os.IsNotExist(err) {
-	// 	if err := os.MkdirAll(newDir, 0700); err != nil {
-	// 		fmt.Println("Error when creating directory", newDir)
-	// 		return noDateFolder
-	// 	}
-	// }
+	newDir = filepath.Join(s.dlDir, year, month)
+
 	return newDir
 }
 
@@ -610,11 +606,10 @@ func (s *Session) getNewPathString(dlFile string, location string) string {
 // location. It then moves dlFile in that directory. It returns the new path
 // of the moved file.
 func (s *Session) moveDownload(ctx context.Context, dlFile, location string) (string, error) {
-	parts := strings.Split(location, "/")
-	if len(parts) < 5 {
-		return "", fmt.Errorf("not enough slash separated parts in location %v: %d", location, len(parts))
-	}
-
+	// parts := strings.Split(location, "/")
+	// if len(parts) < 5 {
+	// 	return "", fmt.Errorf("not enough slash separated parts in location %v: %d", location, len(parts))
+	// }
 	// newDir := filepath.Join(s.dlDir, parts[4])
 	newDir := s.getNewPathString(dlFile, location)
 	if err := os.MkdirAll(newDir, 0700); err != nil {
